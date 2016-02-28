@@ -1,5 +1,6 @@
 // core
 import gulp from 'gulp';
+import gutil from 'gulp-util';
 import del from 'del';
 import runSequence from 'run-sequence';
 import dotenv from 'dotenv';
@@ -48,6 +49,11 @@ gulp.task('clean', () => del('build'));
 gulp.task('haml', () =>
   gulp.src('src/*.haml')
     .pipe(haml())
+    .on('error', function handleError(error) {
+      const message = new gutil.PluginError('haml', error).toString();
+      process.stderr.write(`${message}\n`);
+      this.emit('end');
+    })
     .pipe(gulp.dest('build'))
 );
 
