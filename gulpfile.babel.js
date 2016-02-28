@@ -123,7 +123,7 @@ gulp.task('js:min', ['js'], () =>
 );
 
 // -------------------------------------
-//   Task: Images & Optmizations
+//   Task: Images
 // -------------------------------------
 gulp.task('images', () => {
   return gulp.src('src/img/**/*')
