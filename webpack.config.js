@@ -13,7 +13,8 @@ export default {
   entry,
   output: {
     path: path.join(__dirname, 'build', 'js'),
-    filename: 'bundle.js'
+    filename: 'bundle.js',
+    publicPath: '/js/'
   },
   plugins,
   module: {

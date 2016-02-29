@@ -4,9 +4,10 @@ import gutil from 'gulp-util';
 import del from 'del';
 import runSequence from 'run-sequence';
 import dotenv from 'dotenv';
+import open from 'open';
 
 // dev
-import webserver from 'gulp-webserver';
+import express from 'express';
 import livereload from 'gulp-livereload';
 
 // deploy
@@ -22,7 +23,8 @@ import sourcemaps from 'gulp-sourcemaps';
 import haml from 'gulp-haml';
 
 // js
-import webpack from 'webpack-stream';
+import webpack from 'webpack';
+import webpackStream from 'webpack-stream';
 import webpackConfig from './webpack.config.js';
 import eslint from 'gulp-eslint';
 
@@ -96,10 +98,7 @@ gulp.task('css:min', ['scss'], () =>
 // -------------------------------------
 gulp.task('js', () =>
   gulp.src('src/js/main.js')
-    .pipe(webpack(webpackConfig))
-    .on('error', function handleError() {
-      this.emit('end');
-    })
+    .pipe(webpackStream(webpackConfig))
     .pipe(gulp.dest('build/js'))
     .pipe(livereload())
 );
@@ -125,11 +124,11 @@ gulp.task('js:min', ['js'], () =>
 // -------------------------------------
 //   Task: Images
 // -------------------------------------
-gulp.task('images', () => {
-  return gulp.src('src/img/**/*')
+gulp.task('images', () =>
+  gulp.src('src/img/**/*')
     .pipe(gulp.dest('build/img'))
-    .pipe(livereload());
-});
+    .pipe(livereload())
+);
 
 // -------------------------------------
 //   Task: Watch
@@ -144,19 +143,31 @@ gulp.task('watch', () => {
 // -------------------------------------
 //   Task: Web Server
 // -------------------------------------
-gulp.task('webserver', () =>
-  gulp.src('build')
-    .pipe(webserver({
-      host: '0.0.0.0',
-      port: process.env.HTTP_PORT || 1337,
-      livereload: {
-        enable: true,
-        port: (process.env.LIVERELOAD_PORT || 35729)
-      },
-      directoryListing: false,
-      open: true
-    }))
-);
+gulp.task('serve', (cb) => {
+  livereload.listen({port: (process.env.LIVERELOAD_PORT || 35729)});
+
+  const app = express();
+  const compiler = webpack(webpackConfig);
+  app.use(require('webpack-dev-middleware')(compiler, {
+    noInfo: true,
+    publicPath: webpackConfig.output.publicPath
+  }));
+  app.use(require('webpack-hot-middleware')(compiler));
+  app.use(require('connect-livereload')({
+    port: (process.env.LIVERELOAD_PORT || 35729)
+  }));
+  app.use(express.static('build'));
+  app.listen(process.env.HTTP_PORT || 1337, '0.0.0.0', (err) => {
+    if (err) {
+      console.log(err);
+      return;
+    }
+    const url = `http://0.0.0.0:${process.env.HTTP_PORT || 1337}`;
+    console.log(`Listening at ${url}`);
+    open(url);
+    cb();
+  });
+});
 
 // -------------------------------------
 //   Task: Revision
@@ -171,7 +182,7 @@ gulp.task('rev', () =>
 //   Task: Build DEV - PROD - HAML
 // -------------------------------------
 gulp.task('build:dev', ['clean'], (callback) => {
-  runSequence('scss', 'images', 'haml', 'js', callback);
+  runSequence('scss', 'images', 'haml', callback);
 });
 
 gulp.task('build:prod', ['clean'], (callback) => {
@@ -186,7 +197,7 @@ gulp.task('build:haml', (callback) => {
 //   Task: Development
 // -------------------------------------
 gulp.task('dev', (callback) => {
-  runSequence('build:dev', 'watch', 'webserver', callback);
+  runSequence('build:dev', 'watch', 'serve', callback);
 });
 
 gulp.task('lint', (callback) => {
